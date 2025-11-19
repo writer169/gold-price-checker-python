@@ -1,96 +1,64 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "164ffff1-8d6f-4be1-ade9-bc5d595905ef",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import requests\n",
-    "from bs4 import BeautifulSoup\n",
-    "import smtplib\n",
-    "from email.mime.text import MIMEText\n",
-    "import os\n",
-    "\n",
-    "def send_email(text):\n",
-    "    EMAIL_USER = os.environ[\"EMAIL_USER\"]\n",
-    "    EMAIL_PASS = os.environ[\"EMAIL_PASS\"]\n",
-    "\n",
-    "    # <<< Указываем адреса прямо здесь >>>\n",
-    "    recipients = [\n",
-    "        \"kolyan77st@gmail.com\",\n",
-    "        \"alex77st@mail.ru\"\n",
-    "    ]\n",
-    "    # <<< Конец списка адресатов >>>\n",
-    "\n",
-    "    msg = MIMEText(text, \"plain\", \"utf-8\")\n",
-    "    msg[\"Subject\"] = \"Цены на золото (585, 750, 999)\"\n",
-    "    msg[\"From\"] = EMAIL_USER\n",
-    "    msg[\"To\"] = \", \".join(recipients)\n",
-    "\n",
-    "    server = smtplib.SMTP(\"smtp.gmail.com\", 587)\n",
-    "    server.starttls()\n",
-    "    server.login(EMAIL_USER, EMAIL_PASS)\n",
-    "    server.sendmail(EMAIL_USER, recipients, msg.as_string())\n",
-    "    server.quit()\n",
-    "\n",
-    "\n",
-    "def handler(request):\n",
-    "    try:\n",
-    "        url = \"https://m-lombard.kz/\"\n",
-    "        r = requests.get(url, timeout=10)\n",
-    "        soup = BeautifulSoup(r.text, \"html.parser\")\n",
-    "\n",
-    "        # Ищем блоки с ценами\n",
-    "        prices_raw = soup.select(\".main-cost, .small-cost\")\n",
-    "        prices = [p.get_text(strip=True) for p in prices_raw]\n",
-    "\n",
-    "        price_585 = prices[0] if len(prices) > 0 else \"Нет данных\"\n",
-    "        price_750 = prices[1] if len(prices) > 1 else \"Нет данных\"\n",
-    "        price_999 = prices[2] if len(prices) > 2 else \"Нет данных\"\n",
-    "\n",
-    "        text = (\n",
-    "            \"Текущие цены на золото:\\n\"\n",
-    "            f\"585 проба: {price_585}\\n\"\n",
-    "            f\"750 проба: {price_750}\\n\"\n",
-    "            f\"999 проба: {price_999}\\n\"\n",
-    "        )\n",
-    "\n",
-    "        send_email(text)\n",
-    "\n",
-    "        return {\n",
-    "            \"status\": 200,\n",
-    "            \"data\": text\n",
-    "        }\n",
-    "\n",
-    "    except Exception as e:\n",
-    "        return {\n",
-    "            \"status\": 500,\n",
-    "            \"error\": str(e)\n",
-    "        }\n"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3 (ipykernel)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.14.0"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import requests
+from bs4 import BeautifulSoup
+import smtplib
+from email.mime.text import MIMEText
+import os
+
+def send_email(text):
+    EMAIL_USER = os.environ["EMAIL_USER"]
+    EMAIL_PASS = os.environ["EMAIL_PASS"]
+
+    # <<< Указываешь реальные адреса тут (пример) >>>
+    recipients = [
+        "KZJ78@yandex.ru",
+        "alex77st@mail.ru" 
+    ]
+    # <<< Конец списка адресатов >>>
+
+    msg = MIMEText(text, "plain", "utf-8")
+    msg["Subject"] = "Цены на золото (585, 750, 999)"
+    msg["From"] = EMAIL_USER
+    msg["To"] = ", ".join(recipients)
+
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(EMAIL_USER, EMAIL_PASS)
+    server.sendmail(EMAIL_USER, recipients, msg.as_string())
+    server.quit()
+
+
+def handler(request):
+    try:
+        url = "https://m-lombard.kz/"
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # Ищем элементы с ценами (возможно .main-cost и .small-cost)
+        prices_raw = soup.select(".main-cost, .small-cost")
+        prices = [p.get_text(strip=True) for p in prices_raw]
+
+        price_585 = prices[0] if len(prices) > 0 else "Нет данных"
+        price_750 = prices[1] if len(prices) > 1 else "Нет данных"
+        price_999 = prices[2] if len(prices) > 2 else "Нет данных"
+
+        text = (
+            "Текущие цены на золото:\n"
+            f"585 проба: {price_585}\n"
+            f"750 проба: {price_750}\n"
+            f"999 проба: {price_999}\n"
+        )
+
+        send_email(text)
+
+        # Vercel ожидает возвращаемое значение; возвращаем JSON-подобную строку
+        return {
+            "status": 200,
+            "body": text
+        }
+
+    except Exception as e:
+        return {
+            "status": 500,
+            "body": f"Error: {str(e)}"
+        }
