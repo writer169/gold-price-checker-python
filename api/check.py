@@ -8,12 +8,10 @@ def send_email(text):
     EMAIL_USER = os.environ["EMAIL_USER"]
     EMAIL_PASS = os.environ["EMAIL_PASS"]
 
-    # <<< Указываешь реальные адреса тут (пример) >>>
     recipients = [
         "KZJ78@yandex.ru",
-        "alex77st@mail.ru" 
+        "alex77st@mail.ru",
     ]
-    # <<< Конец списка адресатов >>>
 
     msg = MIMEText(text, "plain", "utf-8")
     msg["Subject"] = "Цены на золото (585, 750, 999)"
@@ -26,7 +24,6 @@ def send_email(text):
     server.sendmail(EMAIL_USER, recipients, msg.as_string())
     server.quit()
 
-
 def handler(request):
     try:
         url = "https://m-lombard.kz/"
@@ -34,13 +31,19 @@ def handler(request):
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Ищем элементы с ценами (возможно .main-cost и .small-cost)
-        prices_raw = soup.select(".main-cost, .small-cost")
-        prices = [p.get_text(strip=True) for p in prices_raw]
+        # Находим все img с alt, содержащим "Проба"
+        imgs = soup.find_all("img", alt=lambda x: x and "Проба" in x)
 
-        price_585 = prices[0] if len(prices) > 0 else "Нет данных"
-        price_750 = prices[1] if len(prices) > 1 else "Нет данных"
-        price_999 = prices[2] if len(prices) > 2 else "Нет данных"
+        price_585 = price_750 = price_999 = "Нет данных"
+
+        for img in imgs:
+            alt = img['alt']
+            if "585" in alt:
+                price_585 = alt.split()[-1]  # цена в конце alt
+            elif "750" in alt:
+                price_750 = alt.split()[-1]
+            elif "999" in alt:
+                price_999 = alt.split()[-1]
 
         text = (
             "Текущие цены на золото:\n"
@@ -51,14 +54,7 @@ def handler(request):
 
         send_email(text)
 
-        # Vercel ожидает возвращаемое значение; возвращаем JSON-подобную строку
-        return {
-            "status": 200,
-            "body": text
-        }
+        return {"status": 200, "body": text}
 
     except Exception as e:
-        return {
-            "status": 500,
-            "body": f"Error: {str(e)}"
-        }
+        return {"status": 500, "body": f"Ошибка: {str(e)}"}
