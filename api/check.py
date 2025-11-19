@@ -4,14 +4,14 @@ import smtplib
 from email.mime.text import MIMEText
 import os
 
+SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY")
+URL = "https://m-lombard.kz/"
+
 def send_email(text):
     EMAIL_USER = os.environ["EMAIL_USER"]
     EMAIL_PASS = os.environ["EMAIL_PASS"]
 
-    recipients = [
-        "KZJ78@yandex.kz",
-        "alex77st@mail.ru"
-    ]
+    recipients = ["KZJ78@yandex.kz", "alex77st@mail.ru"]
 
     msg = MIMEText(text, "plain", "utf-8")
     msg["Subject"] = "Цены на золото (585, 750, 999)"
@@ -26,13 +26,17 @@ def send_email(text):
 
 def handler(request):
     try:
-        url = "https://m-lombard.kz/"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        r = requests.get(url, headers=headers, timeout=10)
+        if not SCRAPER_API_KEY:
+            return {"status": 500, "body": "SCRAPER_API_KEY не задан"}
+
+        scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={URL}"
+
+        r = requests.get(scraper_url, timeout=15)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
 
         imgs = soup.find_all("img", alt=lambda x: x and "Проба" in x)
+
         price_585 = price_750 = price_999 = "Нет данных"
 
         for img in imgs:
@@ -51,7 +55,6 @@ def handler(request):
             f"999 проба: {price_999}\n"
         )
 
-        # Отправка email
         send_email(text)
 
         return {"status": 200, "body": text}
